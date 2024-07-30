@@ -1,1 +1,1 @@
-# test_actions
+# Шаблон настройки GitHub Actions
