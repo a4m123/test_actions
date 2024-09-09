@@ -70,16 +70,35 @@ jobs:
         cpack -G ZIP --config CPackConfig.cmake
       working-directory: ${{ steps.strings.outputs.build-output-dir }}
 
-    - name: Upload artifact (Linux)
-      if: matrix.os == 'ubuntu-latest'
-      uses: actions/upload-artifact@v3
+    - name: Create GitHub Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        name: build-deb
-        path: ${{ steps.strings.outputs.build-output-dir }}/*.deb
+        tag_name: ${{ github.run_number }}
+        release_name: Release ${{ github.run_number }}
+        draft: false
+        prerelease: false
 
-    - name: Upload artifact (Windows)
-      if: matrix.os == 'windows-latest'
-      uses: actions/upload-artifact@v3
+    - name: Upload Release Asset (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        name: build-zip
-        path: ${{ steps.strings.outputs.build-output-dir }}/*.zip
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ${{ steps.strings.outputs.build-output-dir }}/*.deb
+        asset_name: helloworld-${{ github.run_number }}-Linux.deb
+        asset_content_type: application/vnd.debian.binary-package
+
+    - name: Upload Release Asset (Windows)
+      if: matrix.os == 'windows-latest'
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ${{ steps.strings.outputs.build-output-dir }}/*.zip
+        asset_name: helloworld-${{ github.run_number }}-Windows.zip
+        asset_content_type: application/zip
