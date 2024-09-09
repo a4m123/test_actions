@@ -8,21 +8,38 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     permissions: write-all
     steps:
       - uses: actions/checkout@v3
         with:
           submodules: true
+      
+      # Install dependencies based on the OS
+      - name: Install dependencies on Ubuntu
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc g++ cmake
+      
+      - name: Install dependencies on Windows
+        if: runner.os == 'Windows'
+        run: |
+          choco install mingw
+          choco install cmake
+          set PATH=C:\Program Files\mingw-w64\x86_64-8.1.0-posix-seh-rt_v6-rev0\mingw64\bin;%PATH%
+
       - run: cmake . -DPATCH_VERSION=${{ github.run_number }}
       - run: cmake --build .
       - run: cmake --build . --target test
       - run: cmake --build . --target package
+
+      # Create the release (only needs to be done once)
       - name: Create Release
-        if: ${{ matrix.os == 'ubuntu-latest' }}
+        if: matrix.os == 'ubuntu-latest'  # Create the release only on one platform to avoid duplicates
         id: create_release
         uses: actions/create-release@v1
         env:
@@ -32,8 +49,10 @@ jobs:
           release_name: Release ${{ github.run_number }}
           draft: false
           prerelease: false
-      - name: Upload Release Asset (Linux)
-        if: ${{ matrix.os == 'ubuntu-latest' }}
+
+      # Upload release assets for Linux
+      - name: Upload Linux Release Asset
+        if: matrix.os == 'ubuntu-latest'
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -42,13 +61,15 @@ jobs:
           asset_path: ./helloworld-0.0.${{ github.run_number }}-Linux.deb
           asset_name: helloworld-0.0.${{ github.run_number }}-Linux.deb
           asset_content_type: application/vnd.debian.binary-package
-      - name: Upload Release Asset (Windows)
-        if: ${{ matrix.os == 'windows-latest' }}
+
+      # Upload release assets for Windows
+      - name: Upload Windows Release Asset
+        if: matrix.os == 'windows-latest'
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./helloworld-0.0.${{ github.run_number }}-Windows.exe
-          asset_name: helloworld-0.0.${{ github.run_number }}-Windows.exe
-          asset_content_type: application/octet-stream
+          asset_path: ./helloworld-0.0.${{ github.run_number }}-Windows.zip
+          asset_name: helloworld-0.0.${{ github.run_number }}-Windows.zip
+          asset_content_type: application/zip
